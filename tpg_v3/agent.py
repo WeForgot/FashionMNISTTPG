@@ -29,6 +29,10 @@ class Agent:
 	def act(self, state):
 		return self.team.act(state, self.sharedMemory)
 
+	def act_regression(self, state):
+		_ = self.team.act(state, self.sharedMemory)
+		return self.sharedMemory[0][0]
+
 	"""
 	Same as act, but with additional features. Use act for performance.
 	"""

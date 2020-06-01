@@ -23,12 +23,14 @@ class Team:
 	"""
 	def act(self, state, visited=set()):
 		visited.add(self) # track visited teams
+		try:
+			topLearner = max([lrnr for lrnr in self.learners
+					if lrnr.isActionAtomic() or lrnr.action not in visited],
+				key=lambda lrnr: lrnr.bid(state))
 
-		topLearner = max([lrnr for lrnr in self.learners
-				if lrnr.isActionAtomic() or lrnr.action not in visited],
-			key=lambda lrnr: lrnr.bid(state))
-
-		return topLearner.getAction(state, visited=visited)
+			return topLearner.getAction(state, visited=visited)
+		except:
+			return 0
 
 	"""
 	Same as act, but with additional features. Use act for performance.
