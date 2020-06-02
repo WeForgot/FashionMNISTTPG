@@ -95,7 +95,8 @@ class Learner:
 				changed = True
 				newIdx = random.randint(0, Agent.SharedRegisterGroups-1)
 				if newIdx == self.shareIndex:
-					self.shareIndex = (self.shareIndex + 1) % Agent.SharedRegisterGroups
+					newIdx = random.randint(0, Agent.SharedRegisterGroups-1)
+				self.shareIndex = newIdx
 
 	"""
 	Changes the action, into an atomic or team.

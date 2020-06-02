@@ -99,7 +99,7 @@ def main():
 	gens = 100
 	rootTeamSize = 100
 	batchSize = 1000
-	version = 'v1'
+	version = 'v4'
 	checkpoint_name = 'checkpoint_' + version + '.tpg'
 
 	if version == 'v1':
@@ -111,6 +111,9 @@ def main():
 	elif version == 'v3':
 		print('Using TPG Trainer V3 (shared registers with vector and matrix support)')
 		from tpg_v3.trainer import Trainer
+	elif version == 'v4':
+		print('Using TPG Trainer V4 (shared registers with subobservation indexing)')
+		from tpg_v4.trainer import Trainer
 	else:
 		print('Please select a valid version')
 

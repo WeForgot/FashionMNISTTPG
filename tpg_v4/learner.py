@@ -1,7 +1,7 @@
-from tpg_v3.program import Program
-from tpg_v3.agent import Agent
+from tpg_v4.program import Program
+from tpg_v4.agent import Agent
 import numpy as np
-from tpg_v3.utils import flip
+from tpg_v4.utils import flip
 import random
 
 """
@@ -11,26 +11,28 @@ produce the bid value for this learner's action.
 class Learner:
 
 	idCount = 0 # unique learner id
-	NumberOfModes = 2
+	SourceDimensions = [28,28]
+	SourceKernelSize = 3
 
 	"""
 	Create a new learner, either copied from the original or from a program or
 	action. Either requires a learner, or a program/action pair.
 	"""
 	def __init__(self, learner=None, program=None, action=None, numRegisters=8):
-		self.numRegisters = numRegisters
-		self.mode = 0
 		if learner is not None:
 			self.program = Program(instructions=learner.program.instructions)
 			self.action = learner.action
-			self.numRegisters = learner.numRegisters
+			self.registers = np.zeros(len(learner.registers), dtype=float)
 			self.shareIndex = learner.shareIndex
-			self.mode = learner.mode
+			self.obsSrc = learner.obsSrc
 		elif program is not None and action is not None:
 			self.program = program
 			self.action = action
+			self.registers = np.zeros(numRegisters, dtype=float)
 			self.shareIndex = random.randint(0, Agent.SharedRegisterGroups-1)
-			self.mode = random.randint(0,Learner.NumberOfModes-1)
+			self.obsSrc = np.zeros(len(Learner.SourceDimensions), dtype=np.int32)
+			for idx in range(len(Learner.SourceDimensions)):
+				self.obsSrc[idx] = random.randint(0,Learner.SourceDimensions[idx] - Learner.SourceKernelSize - 1)
 
 		if not self.isActionAtomic():
 			self.action.numLearnersReferencing += 1
@@ -46,18 +48,29 @@ class Learner:
 	Get the bid value, highest gets its action selected.
 	"""
 	def bid(self, state, shrRegs):
-		if self.mode == 0:
-			return Program.execute(state, self.numRegisters,
-							self.program.instructions[:,0], self.program.instructions[:,1],
-							self.program.instructions[:,2], self.program.instructions[:,3],
-							self.program.instructions[:,4], self.program.instructions[:,5],
-							shrRegs, self.shareIndex)
-		elif self.mode == 1:
-			return Program.execute_vector(state, Program.sourceDims, self.numRegisters,
-							self.program.instructions[:,0], self.program.instructions[:,1],
-							self.program.instructions[:,2], self.program.instructions[:,3],
-							self.program.instructions[:,4], self.program.instructions[:,5],
-							shrRegs, self.shareIndex, Program.xShift, Program.yMask)
+		'''
+		For right now I am going to say the sub-observation indexing starts in the top left of the kernel and goes for the kernel size (X is the coordinate in self.obsSrc)
+		X00
+		000
+		000
+		I need to change it to be
+		000
+		0X0
+		000
+		but I am having a brainfart right now so just gonna leave it be to get SOMETHING IN. The reason we should do it the latter way is because the former deals with the top left
+		differently than the bottom right. The fix is above by subtracting half the kernel size from the randomly sampled source coordinates but that is kinda jank
+		'''
+		sliceObj = tuple(slice(idl,idl+Learner.SourceKernelSize) for idl in self.obsSrc)
+		newObs = state[sliceObj]
+		self.registers.fill(0)
+		#Program.execute(state, self.registers,
+		Program.execute(newObs, self.registers,
+						self.program.instructions[:,0], self.program.instructions[:,1],
+						self.program.instructions[:,2], self.program.instructions[:,3],
+						self.program.instructions[:,4], self.program.instructions[:,5],
+						shrRegs, self.shareIndex)
+
+		return self.registers[0]
 
 	"""
 	Returns the action of this learner, either atomic, or requests the action
@@ -90,11 +103,8 @@ class Learner:
 			if flip(pMutProg):
 				changed = True
 				self.program.mutate(pMutProg, pDelInst, pAddInst, pSwpInst, pMutInst,
-					self.numRegisters, uniqueProgThresh, shrRegs, self.shareIndex,
+					len(self.registers), uniqueProgThresh, shrRegs, self.shareIndex,
 					inputs=inputs, outputs=outputs)
-			if flip(pMutProg):
-				changed = True
-				self.mode = (self.mode + 1) % Learner.NumberOfModes
 
 			# mutate the action
 			if flip(pMutAct):
@@ -106,8 +116,16 @@ class Learner:
 				changed = True
 				newIdx = random.randint(0, Agent.SharedRegisterGroups-1)
 				if newIdx == self.shareIndex:
-					newIdx = random.randint(0, Agent.SharedRegisterGroups-1)
+					self.shareIndex = (self.shareIndex + 1) % Agent.SharedRegisterGroups
 				self.shareIndex = newIdx
+			
+			if flip(pMutAct):
+				changed = True
+				posShift = np.random.randint(-1, 1, len(Learner.SourceDimensions))
+				while np.count_nonzero(posShift) == 0:
+					posShift = np.random.randint(-1, 1, len(Learner.SourceDimensions))
+				self.obsSrc = np.mod(posShift + self.obsSrc, Learner.SourceDimensions)
+
 
 	"""
 	Changes the action, into an atomic or team.
