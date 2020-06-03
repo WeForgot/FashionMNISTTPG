@@ -50,8 +50,11 @@ def main(args):
 		print('Using TPG Trainer V3 (shared registers with vector and matrix support)')
 		from tpg_v3.trainer import Trainer
 	elif version == 'v4':
-		print('Using TPG Trainer V4 (shared registers with subobservation indexing)')
+		print('Using TPG Trainer V4 (shared registers with sub-observation indexing)')
 		from tpg_v4.trainer import Trainer
+	elif version == 'v5':
+		print('Using TPG Trainer V5 (shared registers with multiple sub-observation indexing)')
+		from tpg_v5.trainer import Trainer
 	else:
 		print('Please select a valid version')
 		return 0
