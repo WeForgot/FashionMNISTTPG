@@ -17,17 +17,6 @@ def batch(iterable, n=1):
 	for ndx in range(0, l, n):
 		yield iterable[ndx:min(ndx + n, l)]
 
-def execute_agent(agent, cur_batch, data, labels, training=True):
-	total_reward = 0
-	for idx in cur_batch:
-		agent.reset()
-		guess = agent.act(data[idx])
-		if guess == labels[idx]:
-			total_reward += 1
-	if training:
-		agent.reward(total_reward)
-	return total_reward
-
 parser = ArgumentParser()
 parser.add_argument('--version', type=int, default=1, help='Which version of the TPG you want to use')
 args = parser.parse_args()
